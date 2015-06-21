@@ -2,34 +2,40 @@ var EventEmitter = require('events').EventEmitter,
   request = require('superagent'),
   Q = require('q');
 
+/*
+ *  ActionCreator
+ */
 var ActionCreator = function(dispatch) {
   this.dispatch = dispatch;
 };
 
-ActionCreator.prototype.createServerAction = function(type, data) {
-  if (this.serverApiHandler) {
-    this.serverApiHandler({type: type, data: data})
-      .then(function(apiData) {
-        this.dispatch({type: type, data: apiData});
-      }.bind(this))
-      .catch(function(err) {
-        console.error(err);
-      });
-  } else console.error('No serverApiHandler defined!');
-};
+ActionCreator.prototype = {
+  createServerAction: function(type, data) {
+    if (this.serverApiHandler) {
+      this.serverApiHandler({type: type, data: data})
+        .then(function(apiData) {
+          this.dispatch({type: type, data: apiData});
+        }.bind(this))
+        .catch(function(err) {
+          console.error(err);
+        });
+    } else console.error('No serverApiHandler defined!');
+  },
 
-ActionCreator.prototype.createViewAction = function (type, data) {
-  this.dispatch({type: type, data: data});
-};
+  createViewAction: function (type, data) {
+    this.dispatch({type: type, data: data});
+  },
 
-ActionCreator.prototype.registerServerApiHandler = function(callback) {
-  this.serverApiHandler = callback;
+  registerServerApiHandler: function(callback) {
+    this.serverApiHandler = callback;
+  }
 };
 
 /*
  *  Dispatcher
  */
 
+// Constructor
 var Dispatcher = function () {
   this._debug = false;
   this._callbacks = [];
@@ -39,6 +45,7 @@ var Dispatcher = function () {
   this._promises = [];
 };
 
+// Prototype
 Dispatcher.prototype = {
 
   register: function(callback) {
@@ -48,8 +55,8 @@ Dispatcher.prototype = {
   },
 
   dispatch: function(action) {
-    if (this._debug) console.log(action.type + ': In queue');
     this._dispatchQueue.push(action);
+    if (this._debug) console.log(action.type + ': In queue');
     this._dispatchNext();
   },
 
@@ -68,7 +75,7 @@ Dispatcher.prototype = {
     var action = this._dispatchQueue.shift();
     if (this._debug) console.log(action.type + ': Dispatching');
 
-     // Make a defer and promise for each callback to handle their progressing
+     // Make a defer and promise for each callback to see when they're finished.
     this._callbacks.forEach(function(callback, i) {
       this._defers[i] = Q.defer();
       this._promises[i] = this._defers[i].promise;
@@ -80,14 +87,14 @@ Dispatcher.prototype = {
       callback(action, this._createResolve(this._defers[i]));
     }.bind(this));
 
-    // Dispatch next action only after all promises have resolved or rejected
+    // Dispatch next action only after all callbacks are complited.
     Q.all(this._promises)
 
       .catch(function(err) {
         if (this._debug) console.error(err);
       }.bind(this))
 
-      .finally(function() {
+      .done(function() {
         if (this._debug) console.log(action.type + ': Finished');
         this._defers = [];
         this._promises = [];
@@ -107,13 +114,13 @@ Dispatcher.prototype = {
       var waitedDefers = [];
       waitList.forEach(function(waited) {
         if (waited instanceof Store) {
-          if (isNaN(waited.dispatchIndex)) {
+          if (typeof waited.dispatchIndex !== 'number') {
             if (this._debug) console.error('waitFor: dispatchIndex must be a number');
           } else {
             var i = waited.dispatchIndex;
             waitedDefers.push(this._promises[i]);
           }
-        } else if (!isNaN(waited)) {
+        } else if (typeof waited === 'number') {
           waitedDefers.push(this._promises[waited]);
         } else {
           if (this._debug) console.error('waitFor: given object is not a Store instance or a number');
@@ -124,7 +131,8 @@ Dispatcher.prototype = {
       Q.all(waitedDefers)
         .then(callback)
         .catch(function() {
-          if (this._debug) console.error('waitFor: Could not execute callback, prerequisite callbacks did not finish');
+          if (this._debug) console.error('waitFor: Could not execute callback, ' +
+            'prerequisite callbacks did not finish');
         });
     }
   },
@@ -139,47 +147,53 @@ Dispatcher.prototype = {
 exports.Dispatcher = Dispatcher;
 
 /*
- *  Store Prototype
+ *  Store
  */
+
+// Constructor
 var Store = function() {};
 
-// Inherit emitter properties
-Store.prototype = Object.create(EventEmitter.prototype);
+// Prototype (inherits node's EventEmitter's prototype)
+Store.prototype = Object.create(EventEmitter.prototype, {
 
-// Store Methods
-Store.prototype.setData = function(data) {
-  this.data = data;
-};
+  setData: function(data) {
+    this.data = data;
+  },
 
-Store.prototype.appendData = function(data) {
-  this.data.push(data);
-};
+  appendData: function(data) {
+    this.data.push(data);
+  },
 
-Store.prototype.getData = function() {
-  return this.data;
-};
+  getData: function() {
+    return this.data;
+  },
 
-Store.prototype.emitChange = function(data) {
-  this.emit('change');
-};
+  emitChange: function(data) {
+    this.emit('change');
+  },
 
-Store.prototype.addChangeListener = function(callback) {
-  this.on('change', callback);
-};
+  addChangeListener: function(callback) {
+    this.on('change', callback);
+  },
 
-Store.prototype.removeChangeListener = function(callback) {
-  this.removeListener('change', callback);
-};
+  removeChangeListener: function(callback) {
+    this.removeListener('change', callback);
+  },
 
-Store.prototype.reactApi = function() {
-  return {
-    getData: this.getData.bind(this),
-    addChangeListener: this.addChangeListener.bind(this),
-    removeListener: this.removeChangeListener.bind(this)
-  };
-};
+  reactApi: function() {
+    return {
+      getData: this.getData.bind(this),
+      addChangeListener: this.addChangeListener.bind(this),
+      removeListener: this.removeChangeListener.bind(this)
+    };
+  }
+});
 
 exports.Store = Store;
+
+/*
+ *  Resource
+ */
 
 exports.resource = function(method, url, data) {
 
