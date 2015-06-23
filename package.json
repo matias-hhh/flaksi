@@ -2,7 +2,7 @@
   "name": "flaksi",
   "version": "0.1.0",
   "description": "An implementation of Facebook's Flux-architecture aiming to reduce the amount of boilerplate code.",
-  "main": "flaksi.js",
+  "main": "index.js",
   "scripts": {
     "test": "mocha test.js"
   },
@@ -18,6 +18,8 @@
   },
   "devDependencies": {
     "mocha": "~2.2.5",
-    "chai": "~3.0.0"
+    "chai": "~3.0.0",
+    "sinon-chai": "~2.8.0",
+    "sinon": "~1.15.3"
   }
 }
