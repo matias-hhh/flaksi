@@ -1,147 +1,183 @@
-var Q = require('q'),
-  ActionCreator = require('./action-creator'),
-  Store = require('./store');
+import Q from 'q';
 
-// Constructor
-var Dispatcher = function () {
+/**
+  Dispatcher
+**/
 
-  // Make sure the constructor-function is called with "new"-operator
-  if (this instanceof Dispatcher) {
-    this._debug = false;
-    this._callbacks = [];
-    this._dispatchQueue = [];
-    this._isDispatching = false;
-    this._asyncCallbacks = [];
-    this._defers = [];
-    this._promises = [];
-  } else {
-    return new Dispatcher();
+// Properties
+let actionHandlers = [],
+  deferreds = [],
+  promises = [],
+  dispatchQueue = [],
+  isDispatching = false,
+  debug = false;
+
+// Methods
+function debugConsole(message) {
+  if (debug) {
+    console.log(message);
   }
-  
-};
+}
 
-// Prototype
-Dispatcher.prototype = {
 
-  register: function(callback) {
-    this._callbacks.push(callback);
-    this._asyncCallbacks.push(false);
+function register(actionHandler) {
+  actionHandlers.push(actionHandler);
+  return actionHandlers.length - 1;
+}
 
-    // Returns dispatchIndex for Store instance
-    return this._callbacks.length - 1;
-  },
+function dispatchNextAction() {
 
-  registerAsync: function(callback) {
-    this._callbacks.push(callback);
-    this._asyncCallbacks.push(true);
+  if (!dispatchQueue.length || isDispatching) {
+    return;
+  }
 
-    return this._callbacks.length - 1;
-  },
+  isDispatching = true;
+  let action = dispatchQueue.shift();
+  if (action.debug) {
+    debug = true;
+  }
+  debugConsole(action.type + ' (source: ' + action.source + ')' + ': Dispatching');
 
-  dispatch: function(action) {
-    this._dispatchQueue.push(action);
-    if (this._debug) console.log(action.type + ': In queue');
-    this._dispatchNext();
-  },
+  // Make a deferred and store its promise for each actionHandler so that we will
+  // know when they all finish and next action will be dispatched
+  actionHandlers.forEach((actionHandler, i) => {
+    deferreds[i] = Q.defer();
+    promises.push(deferreds[i].promise);
+  });
 
-  _createDone: function(defer) {
-    return function(err) {
-      if (err) defer.reject(err);
-      else defer.resolve();
-    };
-  },
+  let handlerHasFired = false;
 
-  _dispatchNext: function() {
+  // Invoke actionHandlers. Each actionHandler either fulfills or rejects it's
+  // deferred
+  actionHandlers.forEach((actionHandler, i) => {
+    debugConsole(action.type + ': Invoking actionHandler ' + (i + 1));
 
-    if (!this._dispatchQueue.length || this._isDispatching) return;
+    if (actionHandler[action.type] !== undefined) {
 
-    this._isDispatching = true;
-    var action = this._dispatchQueue.shift();
-    if (this._debug) console.log(action.type + ': Dispatching');
+      handlerHasFired = true;
 
-     // Make a defer and promise for each callback to see when they're finished.
-    this._callbacks.forEach(function(callback, i) {
-      this._defers[i] = Q.defer();
-      this._promises[i] = this._defers[i].promise;
-    }.bind(this));
+      // If waitFor is needed (indicated by requiring two parameters) pass
+      // it to the handler as the second parameter
+      if (actionHandler[action.type].length === 2) {
+        actionHandler[action.type](action, createWaitFor(i));
 
-    // Invoke callbacks. Each callback then either fulfills or rejects corresponding deferred.
-    this._callbacks.forEach(function(callback, i) {
-      if (this._debug) console.log(action.type + ': starting callback' + (i+1));
-      
-      // Pass a done-function to the callback to be resolved, if it is registered as async
-      if (this._asyncCallbacks[i]) {
-        callback(action, this._createDone(this._defers[i]));
+      // Else just resolve synchronicly with Q.fcall
       } else {
-        Q.fcall(callback, action)
-          .then(this._defers[i].resolve)
-          .catch(this._defers[i].reject);
+        Q.fcall(actionHandler[action.type], action)
+          .then(() => {
+            debugConsole('actionHandler ' + (i + 1) + ' resolved');
+            deferreds[i].resolve();
+          })
+          .catch(err => {
+            deferreds[i].reject(err);
+          });
       }
-    }.bind(this));
+    } else {
 
-    // Dispatch next action only after all callbacks have been completed.
-    Q.all(this._promises)
+      // Mark handler as resolved if no matching handler function for the action
+      debugConsole('actionHandler ' + (i + 1) + ' resolved, didn\'t fire');
+      deferreds[i].resolve();
+    }
+  });
 
-      .catch(function(err) {
-        if (this._debug) console.error(err);
+  // Dispatch next action in dispatchQueue after all actionHandlers have been
+  // resolved
+  Q.all(promises)
+    .done(
+      () => {
+
+        if (!handlerHasFired) {
+          throw new Error('Dispatcher: No handler fired for action type ' +
+              action.type);
+        }
+
+        debugConsole(action.type + ': Finished');
+        promises = [];
+        isDispatching = false;
+        debug = false;
+        dispatchNextAction();
+      },
+      err => {
+        debugConsole(err);
         throw err;
-      }.bind(this))
+      }
+    );
 
-      .done(function() {
-        if (this._debug) console.log(action.type + ': Finished');
-        this._defers = [];
-        this._promises = [];
-        this._isDispatching = false;
-        this._dispatchNext();
-      }.bind(this));
-    
-  },
+}
 
-  waitFor: function(waitList, callback) {
+function dispatch(action) {
+  dispatchQueue.push(action);
 
-    // Make sure waitFor is not called outside dispatching
-    if (!this._isDispatching) {
+  if (action.debug) {
+    debug = true;
+  }
+
+  if (actionHandlers.length === 0) {
+    throw new Error('Dispatcher: No handlers registered');
+    console.log('ERROR');
+  }
+
+  debugConsole(action.type + ': In queue');
+  dispatchNextAction();
+}
+
+function createWaitFor(handlerIndex) {
+
+  return function(waitList, callback) {
+
+    // Check that waitFor is not called outside dispatching
+    if (!isDispatching) {
       throw new Error('waitFor: Cannot be used outside dispatching');
     } else {
-      if (this._debug) console.log('Started waitFor');
-      
-      // Get correspondig defers specified by waitList into an array
-      var waitedDefers = [];
-      waitList.forEach(function(waited) {
-
-        if (waited instanceof Store) {
-
-          if (typeof waited.dispatchIndex !== 'number') {
-            throw new Error('waitFor: dispatchIndex must be a number');
-          } else {
-            var i = waited.dispatchIndex;
-            waitedDefers.push(this._promises[i]);
-          }
-
-        } else if (typeof waited === 'number') {
-          waitedDefers.push(this._promises[waited]);
-        } else {
-          throw new Error('waitFor: Input "' + waited + '" is not a Store instance or a number');
-        }
-      }.bind(this));
-
-      // Wait for the specified defers to resolve and then call the callback
-      Q.all(waitedDefers)
-        .then(callback)
-        .catch(function() {
-          if (this._debug) console.error('waitFor: Could not execute callback, ' +
-              'prerequisite callbacks did not finish');
-          throw new Error('waitFor: Could not execute callback, prerequisite callbacks did not' +
-              'finish');
-        });
+      debugConsole('Started waitFor');
     }
-  },
 
-  newActionCreator: function() {
-    return new ActionCreator(this.dispatch.bind(this));
-  }
+    let waitedPromises = [];
 
-};
+    // Get deferreds from waited actionHandlers
+    waitList.forEach(waited => {
+
+      if (typeof waited.dispatchToken !== undefined) {
+        waitedPromises.push(promises[waited.dispatchToken]);
+
+      } else if (typeof waited === 'number') {
+        waitedPromises.push(promises[waited]);
+
+      } else {
+        throw new Error('waitFor: Parameter is not a list of stores or numbers');
+      }
+    });
+
+    // Wait for the specified deferreds to resolve, then invoke the callback
+    Q.all(waitedPromises)
+      .done(
+        () => {
+          callback();
+          debugConsole('ActionHandler ' + (handlerIndex + 1) + ' resolved');
+          deferreds[handlerIndex].resolve();
+        },
+        err => {
+          debugConsole('waitFor: Could not execute callback, waited' +
+              'actionHandlers did not finish');
+          debugConsole(err);
+        }
+      );
+  };
+}
 
 
-module.exports = Dispatcher;
+function reset() {
+  actionHandlers = [];
+  deferreds = [];
+  promises = [];
+  dispatchQueue = [];
+  isDispatching = false;
+  debug = false;
+}
+
+// Public methods
+export default Object.freeze({
+  register,
+  dispatch,
+  reset
+});

@@ -1,48 +1,70 @@
-var EventEmitter = require('events').EventEmitter,
-  mixin = require('./utils').mixin;
+import dispatcher from './dispatcher';
 
-var Store = function() {
+export default class Store {
 
-  // Make sure the constructor-function is called with "new"-operator
-  if (this instanceof Store) {
-    this._data = null;
-    this._backup = null;
-  } else {
-    return new Store();
+  constructor(debug=false, debugStoreName=undefined) {
+    this.data = {};
+    this.debug = debug;
+    this.debugStoreName = debugStoreName;
   }
-  
-};
 
-// Extend Store's prototype by mixing it with node's EventEmitter and custom methods
-mixin(Store.prototype, EventEmitter.prototype, {
-
-  constructor: Store,
-
-  get data() {
-    return this._data;
-  },
-
-  set data(data) {
-    this._backup = this._data;
-    this._data = data;
-  },
-
-  appendData: function(data) {
-    this._backup = this._data;
-    this._data.push(data);
-  },
-
-  emitChange: function() {
-    this.emit('change');
-  },
-
-  addChangeListener: function(callback) {
-    this.on('change', callback);
-  },
-
-  removeChangeListener: function(callback) {
-    this.removeListener('change', callback);
+  debugConsole(message) {
+    if (this.debug) {
+      if (this.debugStoreName) {
+        console.log(this.debugStoreName + ': ' + message);
+      } else {
+        console.log('store: ' + message);
+      }
+    }
   }
-});
 
-module.exports = Store;
+  register(actionHandler) {
+    this.dispatchToken = dispatcher.register(actionHandler);
+  }
+
+  getData(...keys) {
+    this.debugConsole('getData called');
+    if (keys) {
+      if (keys.length === 1) {
+        return this.data[keys[0]];
+      } else {
+        let data = {};
+        keys.forEach(key => {
+          data[key] = this.data[key];
+        });
+        return data;
+      }
+    } else {
+      return this.data;
+    }
+  }
+
+  setData(newData) {
+    Object.keys(newData).forEach(key => {
+      // Delete the old property so the newly set object refers to a different object
+      // (oldProps !== newProps)
+      delete this.data[key];
+      this.data[key] = newData[key];
+    });
+    this.debugConsole('data set');
+  }
+
+  appendData(newDataObject) {
+    Object.keys(newDataObject).forEach(key => {
+      if (this.data[key]) {
+        this.data[key].push(newDataObject[key]);
+        // Clone the data, same reasons than in setData
+        this.data[key] = this.data[key].slice();
+      } else {
+        this.data[key] = [newDataObject[key]];
+      }
+    });
+
+    this.debugConsole('data appended');
+    this.emitChange();
+  }
+
+  resetData() {
+    this.data = {};
+  }
+}
