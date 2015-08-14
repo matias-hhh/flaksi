@@ -11,7 +11,7 @@ import React from 'react';
 * @param {function} getStateFromStores - A function which returns an object
 *     used with setState-funciton, used in fetching state from the stores
 */
-export default function connectToStores(Component, getStateFromStores) {
+export default function connectToStores(Component, dispatcher, getStateFromStores) {
   class StoreStateManager extends React.Component {
 
     constructor(props) {
@@ -26,15 +26,11 @@ export default function connectToStores(Component, getStateFromStores) {
     }
 
     componentDidMount() {
-      stores.forEach(store => {
-        store.addChangeListener(this.handleStoresChanged);
-      });
+      dispatcher.addChangeListener(this.handleStoresChanged);
     }
 
     componentWillUnmount() {
-      stores.forEach(store => {
-        store.removeChangeListener(this.handleStoresChanged);
-      });
+      dispatcher.removeChangeListener(this.handleStoresChanged);
     }
 
     render () {

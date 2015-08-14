@@ -1,45 +1,46 @@
+import request from 'superagent';
+
 exports.resource = function(method, url, data) {
 
-  var defer = Q.defer();
+  return new Promise((resolve, reject) => {
+    if (method === 'GET') {
 
-  if (method === 'GET') {
+      request
+        .get(url)
+        .end(function(err, res) {
+          if (err) reject(err);
+          else resolve(res.body);
+        });
 
-    request
-      .get(url)
-      .end(function(err, res) {
-        if (err) defer.reject(err);
-        else defer.resolve(res.body);
-      });
+    } else if (method === 'POST') {
 
-  } else if (method === 'POST') {
+      request
+        .post(url)
+        .send(data)
+        .end(function(err, res) {
+          if (err) reject(err);
+          else resolve(res.body);
+        });
 
-    request
-      .post(url)
-      .send(data)
-      .end(function(err, res) {
-        if (err) defer.reject(err);
-        else defer.resolve(res.body);
-      });
+    } else if (method === 'PUT') {
 
-  } else if (method === 'PUT') {
+      request
+        .put(url)
+        .send(data)
+        .end(function(err, res) {
+          if (err) reject(err);
+          else resolve(res.body);
+        });
 
-    request
-      .put(url)
-      .send(data)
-      .end(function(err, res) {
-        if (err) defer.reject(err);
-        else defer.resolve(res.body);
-      });
+    } else if (method === 'DELETE') {
 
-  } else if (method === 'DELETE') {
-
-    request
-      .delete(url)
-      .send(data)
-      .end(function(err, res) {
-        if (err) defer.reject(err);
-        else defer.resolve(res.body);
-      });
-  }
-  return defer.promise;
+      request
+        .delete(url)
+        .send(data)
+        .end(function(err, res) {
+          if (err) reject(err);
+          else resolve(res.body);
+        });
+    }
+  });
 };

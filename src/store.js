@@ -1,5 +1,3 @@
-import dispatcher from './dispatcher';
-
 export default class Store {
 
   constructor(debug=false, debugStoreName=undefined) {
@@ -16,10 +14,6 @@ export default class Store {
         console.log('store: ' + message);
       }
     }
-  }
-
-  register(actionHandler) {
-    this.dispatchToken = dispatcher.register(actionHandler);
   }
 
   getData(...keys) {
@@ -61,7 +55,6 @@ export default class Store {
     });
 
     this.debugConsole('data appended');
-    this.emitChange();
   }
 
   resetData() {
