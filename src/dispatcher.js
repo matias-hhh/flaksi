@@ -1,37 +1,16 @@
 import Store from './store';
+import assign from './assign';
 
 export default class Dispatcher {
 
-  constructor(debugOverride=false) {
+  constructor() {
     this.stores = [];
     this.actionHandlers = [];
     this.promises = [];
     this.dispatchQueue = [];
     this.isDispatching = false;
+    this.stateFromAction = {};
     this.debug = false;
-  }
-
-  getStateFromStores() {
-    let state = {};
-    this.stores.forEach(store => {
-      let storeState = store.getState();
-      Object.keys(storeState).forEach(key => {
-        state[key] = storeState[key];
-      });
-    });
-    return state;
-  }
-
-  connectAppToFlux(app) {
-    this.app = app;
-  }
-
-  getStateFromStoresToApp() {
-    this.getStateFromStores();
-  }
-
-  updateAppState() {
-    this.app.setState(this.getStateFromStores());
   }
 
   debugConsole(message) {
@@ -40,10 +19,26 @@ export default class Dispatcher {
     }
   }
 
+  connectAppToFlux(app) {
+    this.app = app;
+  }
+
+  updateAppState() {
+    this.app.setState(this.stateFromAction);
+  }
+
+  getInitialState() {
+    let state = {};
+    this.stores.forEach(store => {
+      assign(state, store.getState());
+    });
+    return state;
+  }
+
   register(store) {
     this.actionHandlers.push(store.actionHandler);
-    this.stores.push(store);
 
+    this.stores.push(store);
     // Set dispatchToken
     store.dispatchToken = this.actionHandlers.length - 1;
   }
@@ -78,19 +73,32 @@ export default class Dispatcher {
 
           // If two parameters requested in handler, make waitFor the second parameter
           if (actionHandler[action.type].length === 2) {
+
             actionHandler[action.type](action, (waitedStores, callback) => {
               let waitedPromises = [];
+
               waitedStores.forEach(store => {
                 waitedPromises.push(this.promises[store.dispatchToken]);
               });
+
               Promise.all(waitedPromises)
-                .then(callback);
+                .then(() => {
+                  // Resolve only if callback returns something
+                  let stateFromHandler = callback();
+
+                  if (stateFromHandler) {
+                    assign(this.stateFromAction, stateFromHandler);
+                    resolve();
+                  }
+
+                });
             });
 
           } else {
 
             try {
-              actionHandler[action.type](action);
+              let stateFromHandler = actionHandler[action.type](action);
+              assign(this.stateFromAction, stateFromHandler);
             } catch(err) {
               reject(err);
             }
@@ -123,6 +131,7 @@ export default class Dispatcher {
 
         this.promises = [];
         this.isDispatching = false;
+        this.stateFromAction = [];
         this.debug = false;
 
         this.dispatchNext();

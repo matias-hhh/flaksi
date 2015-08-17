@@ -1,63 +1,63 @@
 export default class Store {
 
-  constructor(debug=false, debugStoreName=undefined) {
-    this.data = {};
+  constructor(actionHandler, debug=false) {
+    this.state = {};
+    this.actionHandler = actionHandler;
     this.debug = debug;
-    this.debugStoreName = debugStoreName;
   }
 
   debugConsole(message) {
     if (this.debug) {
-      if (this.debugStoreName) {
-        console.log(this.debugStoreName + ': ' + message);
-      } else {
-        console.log('store: ' + message);
-      }
+      console.log('store: ' + message);
     }
   }
 
-  getData(...keys) {
-    this.debugConsole('getData called');
-    if (keys) {
+  getState(...keys) {
+    this.debugConsole('getState called');
+    if (keys.length > 0) {
       if (keys.length === 1) {
-        return this.data[keys[0]];
+        return this.state[keys[0]];
       } else {
-        let data = {};
+        let state = {};
         keys.forEach(key => {
-          data[key] = this.data[key];
+          state[key] = this.state[key];
         });
-        return data;
+        return state;
       }
     } else {
-      return this.data;
+      return this.state;
     }
   }
 
-  setData(newData) {
-    Object.keys(newData).forEach(key => {
+  setState(newState) {
+    let returnState = {};
+    Object.keys(newState).forEach(key => {
+
       // Delete the old property so the newly set object refers to a different object
       // (oldProps !== newProps)
-      delete this.data[key];
-      this.data[key] = newData[key];
+      delete this.state[key];
+      this.state[key] =  returnState[key] = newState[key];
     });
-    this.debugConsole('data set');
+    this.debugConsole('state set');
+    return returnState;
   }
 
-  appendData(newDataObject) {
-    Object.keys(newDataObject).forEach(key => {
-      if (this.data[key]) {
-        this.data[key].push(newDataObject[key]);
-        // Clone the data, same reasons than in setData
-        this.data[key] = this.data[key].slice();
+  appendState(newStateObject) {
+    let returnState = {};
+    Object.keys(newStateObject).forEach(key => {
+      if (this.state[key]) {
+        this.state[key] = [].concat(this.state[key]);
+        this.state[key].push(newStateObject[key]);
+        returnState[key] = this.state[key];
       } else {
-        this.data[key] = [newDataObject[key]];
+        this.state[key] = returnState[key] = [newStateObject[key]];
       }
     });
-
-    this.debugConsole('data appended');
+    this.debugConsole('state appended');
+    return returnState;
   }
 
-  resetData() {
-    this.data = {};
+  resetState() {
+    this.state = {};
   }
 }
