@@ -1,10 +1,8 @@
-import Store from './store';
 import assign from './assign';
 
 export default class Dispatcher {
 
   constructor() {
-    this.stores = [];
     this.actionHandlers = [];
     this.promises = [];
     this.dispatchQueue = [];
@@ -23,22 +21,19 @@ export default class Dispatcher {
     this.app = app;
   }
 
-  updateAppState() {
-    this.app.setState(this.stateFromAction);
+  initializeStores(initialState) {
+    this.initialState = initialState;
+    let action = assign({type: 'initializeStores'}, initialData);
+    this.dispatch(action);
   }
 
   getInitialState() {
-    let state = {};
-    this.stores.forEach(store => {
-      assign(state, store.getState());
-    });
-    return state;
+    return this.initialState;
   }
 
   register(store) {
     this.actionHandlers.push(store.actionHandler);
 
-    this.stores.push(store);
     // Set dispatchToken
     store.dispatchToken = this.actionHandlers.length - 1;
   }
@@ -98,25 +93,29 @@ export default class Dispatcher {
 
             try {
               let stateFromHandler = actionHandler[action.type](action);
-              assign(this.stateFromAction, stateFromHandler);
+              if (stateFromHandler) {
+                assign(this.stateFromAction, stateFromHandler);
+              }
             } catch(err) {
+              this.debugConsole(action.type + ': ERROR: actionHandler ' + (i + 1) + ' rejected');
               reject(err);
+              return;
             }
 
-            this.debugConsole('actionHandler ' + (i + 1) + ' resolved');
+            this.debugConsole(action.type + ': actionHandler ' + (i + 1) + ' resolved');
             resolve();
           }
 
         } else {
 
           // Mark handler as resolved if no matching handler function for the action
-          this.debugConsole('actionHandler ' + (i + 1) + ' resolved, didn\'t fire');
+          this.debugConsole(action.type + ': actionHandler ' + (i + 1) + ' resolved, didn\'t fire');
           resolve();
         }
       });
     });
 
-    // Dispatch next action in dispatchQueue after all actionHandlers have been
+    // Update app state and dispatch next action after all handlers have been
     // resolved
     Promise.all(this.promises)
       .then(() => {
@@ -127,7 +126,11 @@ export default class Dispatcher {
         }
 
         this.debugConsole(action.type + ': Finished');
-        this.updateAppState();
+
+        // Update changed state to app
+        if (this.stateFromAction) {
+          this.app.setState(this.stateFromAction);
+        }
 
         this.promises = [];
         this.isDispatching = false;
