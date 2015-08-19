@@ -6,12 +6,27 @@ export default class Store {
     this.debug = debug;
   }
 
+  /**
+   *  Logging function which logs messages to console if this.debug is set true
+   */
   debugConsole(message) {
     if (this.debug) {
       console.log('store: ' + message);
     }
   }
 
+  /**
+   *  Get state from store. It can be the whole state or specified substates
+   *  @param {string} ...keys
+   *  @returns {Object} three cases:
+   *    1: no key specified -> return this.state
+   *    2: one key -> return this.data[key]
+   *    3: multiple keys -> return {
+   *         keys[0]: this.state[keys[0]],
+   *         keys[1]: this.state[keys[1]],
+   *         etc... 
+   *       }
+   */
   getState(...keys) {
     this.debugConsole('getState called');
     if (keys.length > 0) {
@@ -29,6 +44,12 @@ export default class Store {
     }
   }
 
+  /**
+   *  Set store state per the given state object
+   *  @param {object} newState - Object containing substates
+   *  @returns {object} The state that was stored in this.state
+   *  @example setState({subState1: *some data here*, subState2: *more data*})
+   */
   setState(newState) {
     let returnState = {};
     Object.keys(newState).forEach(key => {

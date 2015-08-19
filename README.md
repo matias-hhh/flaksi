@@ -5,7 +5,13 @@ Flaksi is an (another) implemetation for **Facebook's Flux-architecture**. I mad
 ##How it works
 
 
-As every flux framework, flaksi tries to reduce boilerplate code and make the opration much more simple and straightforward. Let's begin with stores, since understanding how they work makes flaksi easy to grasp.
+As every flux framework, flaksi tries to reduce boilerplate code and make the operation much more simple and straightforward. 
+
+For starters, there is no bloated switch statements in stores. Instead, every store has an object called actionHandler which contains simple functions that handle incoming actions, which is much lighter to handle than the switches.
+
+There is no need to register individual stores to the React app, you need only to register the app to the dispatcher, which then handles the updating of all the state changes from the stores to the app.
+
+And finally, there is no need to compose a list of actions separately. Only place we need to define action names are in the handler functions' names in the stores' actionHandlers. When registering the stores to the dispacther, it reads the handler functions' keys and forms an actionCreator from them.
 
 ####Stores:
  
@@ -33,11 +39,11 @@ Stores differ from canon by having ``actionHandler`` -objects instead of callbac
 	});
 ```
 
-As we can see, the ``actionHandler``-object consist of handler functions which are given **the same name as the action** which is supposed to trigger them. The handler is given the action as a parameter. Also, if ``waitFor`` is needed, it can be accessed as a parameter too as you can see in the above code.
+As we can see, the ``actionHandler``-object consist of handler functions which are given **the same name as the action** which is supposed to trigger them. For example, the oneAction-handler above would fire when action with type 'oneAction' is dispatched. The handler is given the action data as a parameter. Also, if ``waitFor`` is needed, it can be accessed as a parameter too as you can see in the above code.
 
-The **important part** in the handler-functions is that in addition of saving the state in the store, the **changed state is also returned** to the caller aka the dispatcher which then passes the combined state object from all stores to the react app's setState after all ``actionHandlers`` have fired.
+The **important part** in the handler-functions is that in addition of storing the state in the store, the **newly changed state is also returned** to the caller aka the dispatcher, which then passes the combined state object from all stores to the react app's setState-method, after all ``actionHandlers`` have fired. This way the dispatcher updates always only the sub-states that have actually changed to the React app.
 
-Stores have some helper methods for achieving **immutability** so that in react you can use the ``(oldProps !== newProps)`` -check, ``setState`` and ``appendState``. Both methods accept a state object as a parameter, which is sent eventually to react's setState-method also. ``setState`` erases previous state of the stated properties and sets new ones, when ``appendState`` is used with lists, and it does at it says. Both methods return the changed state.
+Stores have some helper methods for achieving **immutability** so that in react you can use the ``(oldProps !== newProps)`` -check, ``setState`` and ``appendState``. Both methods accept a state object as a parameter, and they handle similar to React's setState-method. ``setState`` erases previous state of the given sub-state and sets new state, when ``appendState`` is used with sub-states that are list, and it does what it says. Both methods return the changed state.
 
 You can get specified state properties from a store at any time using stores's ``getState``-method, which accepts key-strings as parameters
 
