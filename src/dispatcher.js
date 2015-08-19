@@ -27,7 +27,7 @@ export default class Dispatcher {
 
   initializeStores(initialState) {
     this.initialState = initialState;
-    let action = assign({type: 'initializeStores'}, initialData);
+    let action = assign({type: 'initializeStores'}, initialState);
     this.dispatch(action);
   }
 
@@ -39,11 +39,11 @@ export default class Dispatcher {
     return data => {
 
       // Create "quite" unique transaction id for rollback
-      let transactionId = Date.now() + 'r' + Math.random();
+      let transactionId = Date.now() + '+' + Math.random();
       console.log(transactionId);
 
       if (data) {
-        if (data.view) {
+        if (data.view || data.both) {
           let action = assign({type, transactionId, source: 'view'}, data.view,
             data.both);
           console.log(action);
