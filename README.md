@@ -5,11 +5,11 @@ Flaksi is an (another) implemetation for **Facebook's Flux-architecture**. I mad
 ##How it works
 
 
-As every flux framework, flaksi tries to reduce boilerplate code and make the operation much more simple and straightforward. 
+As every Flux framework, flaksi tries to reduce boilerplate code and make the operation much more simple and straightforward. Btw, if you don't know a thing about Flux, this documentation will not make much sense to you. Please read about Flux [here](https://facebook.github.io/flux/docs/overview.html) first.
 
-For starters, there is no bloated switch statements in stores. Instead, every store has an object called actionHandler which contains simple functions that handle incoming actions, which is much lighter to handle than the switches.
+For starters, flaksi has no bloated switch statements in stores. Instead, every store has an object called actionHandler which contains simple functions that handle incoming actions, which are much lighter to work with than the switches.
 
-There is no need to register individual stores to the React app, you need only to register the app to the dispatcher, which then handles the updating of all the state changes from the stores to the app.
+There is no need to register individual stores to the React app, you need only to register your top level component to the dispatcher, which then handles the updating of all the state changes from the stores to the app.
 
 And finally, there is no need to compose a list of actions separately. Only place we need to define action names are in the handler functions' names in the stores' actionHandlers. When registering the stores to the dispacther, it reads the handler functions' keys and forms an actionCreator from them.
 
