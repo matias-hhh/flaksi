@@ -1,9 +1,13 @@
 import assign from './assign';
+import resource from './resource';
+
+import testPostDetailsData from '../../../test-post-details-data';
 
 export default class Dispatcher {
 
   constructor() {
     this.actionHandlers = [];
+    this.actions = {};
     this.promises = [];
     this.dispatchQueue = [];
     this.isDispatching = false;
@@ -31,11 +35,86 @@ export default class Dispatcher {
     return this.initialState;
   }
 
-  register(store) {
+  triggerAction(type) {
+    return data => {
+
+      // Create "quite" unique transaction id for rollback
+      let transactionId = Date.now() + 'r' + Math.random();
+      console.log(transactionId);
+
+      if (data) {
+        if (data.view) {
+          let action = assign({type, transactionId, source: 'view'}, data.view,
+            data.both);
+          console.log(action);
+          this.dispatch(action);
+        }
+
+        if (data.server) {
+
+          setTimeout(() => {
+            this.dispatch({
+              type,
+              transactionId,
+              source: 'server',
+              post: testPostDetailsData.post,
+              comments: testPostDetailsData.comments
+            });
+          }, 1000);
+
+          /*let apiData = assign({}, data.both, data.server)
+
+          delete apiData.method;
+          delete apiData.url;
+
+          resource(method, url, data.server)
+            .then(result => {
+              let action = assign({type, transactionId, source: 'server'},
+                result);
+              this.dispatch(action);
+            })
+            .catch(err => {
+              let action = {type, transactionId, source: 'server', error: err};
+              this.dispatch(action);
+            });*/
+        }
+      } else {
+        this.dispatch({type});
+      }
+    };
+  }
+
+  registerStore(store) {
+
+    // Register actionHandler
     this.actionHandlers.push(store.actionHandler);
+
+    // Find out the actions the store is waiting for and store them in
+    // this.actions
+    Object.keys(store.actionHandler).forEach(key => {
+      if (!this.actions[key]) {
+        this.actions[key] = this.triggerAction(key);
+      }
+    });
 
     // Set dispatchToken
     store.dispatchToken = this.actionHandlers.length - 1;
+  }
+
+  register(stores) {
+
+    if (Object.prototype.toString.call(stores) === '[object Array]') {
+      stores.forEach(store => {
+        this.registerStore(store);
+      });
+
+    } else {
+      this.registerStore(stores);
+    }
+  }
+
+  getActions() {
+    return this.actions;
   }
 
   dispatchNext() {
@@ -52,11 +131,13 @@ export default class Dispatcher {
       this.debug = true;
     }
 
-    this.debugConsole(action.type + ' (source: ' + action.source + ')' + ': Dispatching');
+    this.debugConsole(action.type + ' (source: ' + action.source + ')' +
+      ': Dispatching');
 
     let handlerHasFired = false;
 
-    // Make a promise for each actionHandler so we can see when all handlers are resolved
+    // Make a promise for each actionHandler so we can see when all handlers
+    //are resolved
     this.actionHandlers.forEach((actionHandler, i) => {
       this.promises[i] = new Promise((resolve, reject) => {
 
@@ -66,7 +147,8 @@ export default class Dispatcher {
 
           handlerHasFired = true;
 
-          // If two parameters requested in handler, make waitFor the second parameter
+          // If two parameters requested in handler, make waitFor the second
+          // parameter
           if (actionHandler[action.type].length === 2) {
 
             actionHandler[action.type](action, (waitedStores, callback) => {
@@ -97,19 +179,23 @@ export default class Dispatcher {
                 assign(this.stateFromAction, stateFromHandler);
               }
             } catch(err) {
-              this.debugConsole(action.type + ': ERROR: actionHandler ' + (i + 1) + ' rejected');
+              this.debugConsole(action.type + ': ERROR: actionHandler ' +
+                (i + 1) + ' rejected');
               reject(err);
               return;
             }
 
-            this.debugConsole(action.type + ': actionHandler ' + (i + 1) + ' resolved');
+            this.debugConsole(action.type + ': actionHandler ' + (i + 1) +
+              ' resolved');
             resolve();
           }
 
         } else {
 
-          // Mark handler as resolved if no matching handler function for the action
-          this.debugConsole(action.type + ': actionHandler ' + (i + 1) + ' resolved, didn\'t fire');
+          // Mark handler as resolved if no matching handler function for the
+          // action
+          this.debugConsole(action.type + ': actionHandler ' + (i + 1) +
+            ' resolved, didn\'t fire');
           resolve();
         }
       });
