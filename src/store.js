@@ -18,14 +18,13 @@ export default class Store {
   /**
    *  Get state from store. It can be the whole state or specified substates
    *  @param {string} ...keys
-   *  @returns {Object} three cases:
-   *    1: no key specified -> return this.state
-   *    2: one key -> return this.data[key]
-   *    3: multiple keys -> return {
-   *         keys[0]: this.state[keys[0]],
-   *         keys[1]: this.state[keys[1]],
-   *         etc... 
-   *       }
+   *  @returns {Object}  1: no key specified -> return this.state
+   *                     2: one key -> return this.data[key]
+   *                     3: multiple keys -> return {
+   *                          keys[0]: this.state[keys[0]],
+   *                          keys[1]: this.state[keys[1]],
+   *                          etc... 
+   *                        }
    */
   getState(...keys) {
     this.debugConsole('getState called');
@@ -51,31 +50,31 @@ export default class Store {
    *  @example setState({subState1: *some data here*, subState2: *more data*})
    */
   setState(newState) {
-    let returnState = {};
+    let returnedState = {};
     Object.keys(newState).forEach(key => {
 
       // Delete the old property so the newly set object refers to a different object
       // (oldProps !== newProps)
       delete this.state[key];
-      this.state[key] =  returnState[key] = newState[key];
+      this.state[key] =  returnedState[key] = newState[key];
     });
     this.debugConsole('state set');
-    return returnState;
+    return returnedState;
   }
 
   appendState(newStateObject) {
-    let returnState = {};
+    let returnedState = {};
     Object.keys(newStateObject).forEach(key => {
       if (this.state[key]) {
         this.state[key] = [].concat(this.state[key]);
         this.state[key].push(newStateObject[key]);
-        returnState[key] = this.state[key];
+        returnedState[key] = this.state[key];
       } else {
-        this.state[key] = returnState[key] = [newStateObject[key]];
+        this.state[key] = returnedState[key] = [newStateObject[key]];
       }
     });
     this.debugConsole('state appended');
-    return returnState;
+    return returnedState;
   }
 
   resetState() {
