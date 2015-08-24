@@ -1,8 +1,6 @@
 import assign from './assign';
 import resource from './resource';
 
-import testPostDetailsData from '../../../test-post-details-data';
-
 export default class Dispatcher {
 
   constructor() {
@@ -25,6 +23,10 @@ export default class Dispatcher {
     this.app = app;
   }
 
+  registerServerApiMockup(apiMockup) {
+    this.apiMockup = apiMockup;
+  }
+
   initializeStores(initialState) {
     this.initialState = initialState;
     let action = assign({type: 'initializeStores'}, initialState);
@@ -40,43 +42,42 @@ export default class Dispatcher {
 
       // Create "quite" unique transaction id for rollback
       let transactionId = Date.now() + '+' + Math.random();
-      console.log(transactionId);
 
       if (data) {
         if (data.view || data.both) {
           let action = assign({type, transactionId, source: 'view'}, data.view,
             data.both);
-          console.log(action);
           this.dispatch(action);
         }
 
         if (data.server) {
 
-          setTimeout(() => {
-            this.dispatch({
-              type,
-              transactionId,
-              source: 'server',
-              post: testPostDetailsData.post,
-              comments: testPostDetailsData.comments
-            });
-          }, 1000);
-
-          /*let apiData = assign({}, data.both, data.server)
-
+          // Shape the object sent to the server
+          let apiData = assign({}, data.both, data.server);
           delete apiData.method;
           delete apiData.url;
 
-          resource(method, url, data.server)
+          // Use mockup apiCaller if one is defined
+          let apiCaller;
+
+          if (this.apiMockup) {
+            apiCaller = this.apiMockup;
+          } else {
+            apiCaller = resource;
+          }
+
+          apiCaller(data.server.method, data.server.url, apiData)
             .then(result => {
               let action = assign({type, transactionId, source: 'server'},
                 result);
+              if (apiData.debug) { assign(action, {debug: true}); }
               this.dispatch(action);
             })
             .catch(err => {
               let action = {type, transactionId, source: 'server', error: err};
+              if (apiData.debug) { assign(action, {debug: true}); }
               this.dispatch(action);
-            });*/
+            });
         }
       } else {
         this.dispatch({type});
