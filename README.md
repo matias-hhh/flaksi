@@ -15,6 +15,14 @@ There is no need to register individual listener from stores to the React app, y
 
 And finally, there is no need to compose a list of actions separately. Only place we need to define action names are in the handler functions' names in the stores' actionHandlers. When registering the stores to the dispacther, it reads the handler functions' keys and forms an actionCreator from them.
 
+####Installation:
+
+Flaksi can be installed with npm:
+
+``
+	$ npm install flaksi
+``
+
 ####Stores:
  
 Stores differ from canon by having ``actionHandler`` -objects instead of callbacks which are registered to the dispatcher. The handler is given as a parameter when creating the store:
@@ -41,7 +49,7 @@ Stores differ from canon by having ``actionHandler`` -objects instead of callbac
 	});
 ```
 
-As we can see, the ``actionHandler``-object consist of handler functions which are given **the same name as the action** which is supposed to trigger them. For example, the oneAction-handler above would fire when action with type 'oneAction' is dispatched. The handler is given the action data as a parameter. Also, if ``waitFor`` is needed, it can be accessed as a parameter too as you can see in the above code.
+The ``actionHandler``-object consist of handler functions which are given **the same name as the action** which is supposed to trigger them. For example, the oneAction-handler above would fire when action with type 'oneAction' is dispatched. The handler is given the action data as a parameter. Also, if ``waitFor`` is needed, it can be accessed as a parameter too as you can see in the above code.
 
 The **important part** in the handler-functions is that in addition of storing the state in the store, the **newly changed state is also returned** to the caller aka the dispatcher, which then passes the combined state object from all stores to the react app's setState-method, after all ``actionHandlers`` have fired. This way the dispatcher updates always only the sub-states that have actually changed to the React app.
 
@@ -59,7 +67,7 @@ You can get specified state properties from a store at any time using stores's `
 
 ####Dispatcher:
 
-Dispatcher dispatches actions one at a time and implements waitFor.
+Dispatcher dispatches actions one at a time and implements waitFor. It controls everything in flaksi, and connects the react-app to the flux.
 
 Creating a dispatcher:
 
@@ -93,6 +101,24 @@ Flaksi works seamlessly with react js, and is connected to the app in the app's 
 ```
 
 After connection, the dispatcher updates the apps state automatically according to the stores after each action.
+
+Stores can be initialized with ``dispatcher.InitializeStores(intialStateObject)``, where initialStateObject contains all states you want to initialize, for example ``{someState: someInitialData}``. ``InitializeStores()`` actually creates an action with type ``initializeStores``, and to get the initial state to the stores, you have to have a handler for that action in the stores you want to initialize, for example:
+
+```js
+	someStore = new Store({
+		initializeStore(action) {
+			return someStore.setState({someState: action.someState});
+		}
+	});
+```
+Initial state can be given for the react app in the apps constructor like this:
+
+```js
+	constructor(props) {
+		super(props);
+		this.state = dispatcher.getInitialState();
+	}
+```
 
 ####Actions:
 
