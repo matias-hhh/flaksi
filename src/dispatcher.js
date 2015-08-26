@@ -58,7 +58,8 @@ export default class Dispatcher {
               transactionId,
               source: 'server',
               post: testPostDetailsData.post,
-              comments: testPostDetailsData.comments
+              comments: testPostDetailsData.comments,
+              debug: true
             });
           }, 1000);
 
