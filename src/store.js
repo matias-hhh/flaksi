@@ -1,8 +1,7 @@
 export default class Store {
 
-  constructor(actionHandler, debug=false) {
+  constructor(debug=false) {
     this.state = {};
-    this.actionHandler = actionHandler;
     this.debug = debug;
   }
 
@@ -19,8 +18,8 @@ export default class Store {
    *  Used by dispatcher, sets resolve-function when resolving the store during
    *  the dispacthing of an action.
    */
-  setResolve(resolve) {
-    this.resolve = resolve;
+  getStateWithCallback(callback) {
+    this.callback = callback;
   }
 
   /**
@@ -42,12 +41,11 @@ export default class Store {
 
     this.debugConsole('state set');
 
-    if (this.resolve) {
-      this.resolve(returnedState);
+    if (this.callback) {
+      this.callback(returnedState);
     } else {
-      throw new Error('Cannot set state if no resolve-function is given!');
+      throw new Error('Cannot set state if no callback is given from dispatcher!');
     }
 
-    this.resolve = undefined;
   }
 }

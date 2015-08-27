@@ -1,6 +1,6 @@
 import request from 'superagent';
 
-exports.resource = function(method, url, data) {
+export default function(method, url, data) {
 
   return new Promise((resolve, reject) => {
     if (method === 'GET') {

@@ -3,14 +3,26 @@ import resource from './resource';
 
 export default class Dispatcher {
 
-  constructor() {
-    this.actionHandlers = [];
+  constructor(stores, debug=false) {
     this.actions = {};
     this.promises = [];
     this.dispatchQueue = [];
     this.isDispatching = false;
-    this.stateFromAction = {};
-    this.debug = false;
+    this.debug = debug;
+    this.stores = [];
+
+    stores.forEach(Store => {
+      this.stores.push(Store);
+
+      // Read action handler names from stores and make properties with same
+      // names to this.actions and assign a triggerAction function for each
+      Object.getOwnPropertyNames(Store.prototype).forEach(name => {
+        if (name !== 'constructor' && this.actions[name] === undefined) {
+          this.actions[name] = this.createTriggerAction(name);
+        }
+      });
+    });
+
   }
 
   debugConsole(message) {
@@ -19,25 +31,14 @@ export default class Dispatcher {
     }
   }
 
-  connectAppToFlux(app) {
-    this.app = app;
-  }
-
-  registerServerApiMockup(apiMockup) {
-    this.apiMockup = apiMockup;
-  }
-
   initializeStores(initialState) {
-    this.initialState = initialState;
-    let action = assign({type: 'initializeStores'}, initialState);
-    this.dispatch(action);
+    this.stores = this.stores.map(Store => {
+      let store = new Store(initialState, true);
+      return store;
+    });
   }
 
-  getInitialState() {
-    return this.initialState;
-  }
-
-  triggerAction(type) {
+  createTriggerAction(type) {
     return data => {
 
       // Create "quite" unique transaction id for rollback
@@ -85,37 +86,15 @@ export default class Dispatcher {
     };
   }
 
-  registerStore(store) {
+  dispatch(action) {
+    this.dispatchQueue.push(action);
 
-    // Register actionHandler
-    this.actionHandlers.push(store.actionHandler);
-
-    // Find out the actions the store is waiting for and store them in
-    // this.actions
-    Object.keys(store.actionHandler).forEach(key => {
-      if (!this.actions[key]) {
-        this.actions[key] = this.triggerAction(key);
-      }
-    });
-
-    // Set dispatchToken
-    store.dispatchToken = this.actionHandlers.length - 1;
-  }
-
-  register(stores) {
-
-    if (Object.prototype.toString.call(stores) === '[object Array]') {
-      stores.forEach(store => {
-        this.registerStore(store);
-      });
-
-    } else {
-      this.registerStore(stores);
+    if (this.stores.length === 0) {
+      throw new Error('Dispatcher: No stores registered');
     }
-  }
 
-  getActions() {
-    return this.actions;
+    this.debugConsole(action.type + ': In queue');
+    this.dispatchNext();
   }
 
   dispatchNext() {
@@ -128,131 +107,81 @@ export default class Dispatcher {
 
     let action = this.dispatchQueue.shift();
 
-    if (action.debug) {
-      this.debug = true;
-    }
-
     this.debugConsole(action.type + ' (source: ' + action.source + ')' +
       ': Dispatching');
 
-    let handlerHasFired = false;
+    let storeHasFired = false;
 
-    // Make a promise for each actionHandler so we can see when all handlers
-    //are resolved
-    this.actionHandlers.forEach((actionHandler, i) => {
+    this.stores.forEach((store, i) => {
+
+      // Make a promise for each store so we can see when all stores
+      // have resolved
       this.promises[i] = new Promise((resolve, reject) => {
-
         this.debugConsole(action.type + ': Invoking actionHandler ' + (i + 1));
 
-        if (actionHandler[action.type] !== undefined) {
+        if (store[action.type] !== undefined) {
 
-          handlerHasFired = true;
+          storeHasFired = true;
 
-          // If two parameters requested in handler, make waitFor the second
-          // parameter
-          if (actionHandler[action.type].length === 2) {
+          // Pass a callback to the store to receive it's state
+          let stateFromStore;
+          store.getStateWithCallback(state => {
+            stateFromStore = state;
+          });
 
-            actionHandler[action.type](action, (waitedStores, callback) => {
-              let waitedPromises = [];
-
-              waitedStores.forEach(store => {
-                waitedPromises.push(this.promises[store.dispatchToken]);
-              });
-
-              Promise.all(waitedPromises)
-                .then(() => {
-                  // Resolve only if callback returns something
-                  let stateFromHandler = callback();
-
-                  if (stateFromHandler) {
-                    assign(this.stateFromAction, stateFromHandler);
-                    resolve();
-                  }
-
-                });
-            });
-
-          } else {
-
-            try {
-              let stateFromHandler = actionHandler[action.type](action);
-              if (stateFromHandler) {
-                assign(this.stateFromAction, stateFromHandler);
-              }
-            } catch(err) {
-              this.debugConsole(action.type + ': ERROR: actionHandler ' +
-                (i + 1) + ' rejected');
-              reject(err);
-              return;
-            }
-
-            this.debugConsole(action.type + ': actionHandler ' + (i + 1) +
-              ' resolved');
-            resolve();
+          // Call the store's action handler
+          try {
+            store[action.type].call(store, action);
+          } catch(err) {
+            reject(err);
+            return;
           }
+          
+          resolve(stateFromStore);
+          
 
         } else {
 
-          // Mark handler as resolved if no matching handler function for the
+          // Mark store as resolved if no matching handler function found for the
           // action
-          this.debugConsole(action.type + ': actionHandler ' + (i + 1) +
+          this.debugConsole(action.type + ': store ' + (i + 1) +
             ' resolved, didn\'t fire');
           resolve();
         }
       });
     });
 
-    // Update app state and dispatch next action after all handlers have been
+    // Update app state and dispatch next action after all stores have been
     // resolved
     Promise.all(this.promises)
-      .then(() => {
+      .then((stateArray) => {
 
-        if (!handlerHasFired) {
-          throw new Error('Dispatcher: No handler fired for action type ' +
+        if (!storeHasFired) {
+          throw new Error('Dispatcher: No store fired for action type ' +
               action.type);
         }
 
         this.debugConsole(action.type + ': Finished');
 
-        // Update changed state to app
-        if (this.stateFromAction) {
-          this.app.setState(this.stateFromAction);
-        }
+        // Make a state object from all the states from individual stores
+        let stateFromStores = {};
+        stateArray.forEach(state => {
+          assign(stateFromStores, state);
+        });
+
+        // Update app's state
+        this.app.setState(stateFromStores);
 
         this.promises = [];
         this.isDispatching = false;
-        this.stateFromAction = [];
-        this.debug = false;
 
         this.dispatchNext();
       })
 
       .catch(err => {
-          this.debugConsole(err);
+          console.error(err);
         }
       );
   }
 
-  dispatch(action) {
-    this.dispatchQueue.push(action);
-
-    if (action.debug) {
-      this.debug = true;
-    }
-
-    if (this.actionHandlers.length === 0) {
-      throw new Error('Dispatcher: No handlers registered');
-    }
-
-    this.debugConsole(action.type + ': In queue');
-    this.dispatchNext();
-  }
-
-  reset() {
-    this.actionHandlers = [];
-    this.promises = [];
-    this.dispatchQueue = [];
-    this.isDispatching = false;
-    this.debug = false;
-  }
 }
