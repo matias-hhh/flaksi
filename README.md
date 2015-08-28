@@ -115,7 +115,7 @@ Stores in flaksi can be thought as React Components stripped of anything but the
 The most peculiar thing in flaksi stores are the action handler methods. Instead of bloated switch statements like in most Flux implementations, the incoming actions are handled by methods with the same name as the action's type. Here's an example store:
 
 ```js
-  import {Store} from '../lib/flaksi';
+  import {Store} from 'flaksi';
 
   export default class messageStore extends Store {
 
