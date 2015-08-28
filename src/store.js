@@ -14,14 +14,6 @@ export default class Store {
     }
   }
 
-  /*
-   *  Used by dispatcher, sets resolve-function when resolving the store during
-   *  the dispacthing of an action.
-   */
-  getStateWithCallback(callback) {
-    this.callback = callback;
-  }
-
   /**
    *  Set store state per the given state object and resolve it for the dispatcher
    *  @param {object} newState - Object containing substates
@@ -29,23 +21,16 @@ export default class Store {
    *  @example setState({subState1: *some data here*, subState2: *more data*})
    */
   setState(newState) {
-    let returnedState = {};
 
     Object.keys(newState).forEach(key => {
 
       // Delete the old property so the newly set object refers to a different object
       // (oldProps !== newProps)
       delete this.state[key];
-      this.state[key] =  returnedState[key] = newState[key];
+      this.state[key] = newState[key];
     });
 
     this.debugConsole('state set');
-
-    if (this.callback) {
-      this.callback(returnedState);
-    } else {
-      throw new Error('Cannot set state if no callback is given from dispatcher!');
-    }
-
   }
+
 }

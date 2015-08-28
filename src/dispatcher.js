@@ -123,12 +123,6 @@ export default class Dispatcher {
 
           storeHasFired = true;
 
-          // Pass a callback to the store to receive it's state
-          let stateFromStore;
-          store.getStateWithCallback(state => {
-            stateFromStore = state;
-          });
-
           // Call the store's action handler
           try {
             store[action.type].call(store, action);
@@ -136,9 +130,9 @@ export default class Dispatcher {
             reject(err);
             return;
           }
-          
-          resolve(stateFromStore);
-          
+
+          resolve(store.state);
+
 
         } else {
 
