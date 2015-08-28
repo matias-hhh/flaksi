@@ -1,6 +1,6 @@
 {
   "name": "flaksi",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "repository": "https://github.com/matias-hhh/flaksi.git",
   "description": "An implementation of Facebook's Flux-architecture.",
   "main": "flaksi.js",
