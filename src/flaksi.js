@@ -16,8 +16,8 @@ export default {
       // Make actions available everywhere
       window.actionCreator = dispatcher.actions;
 
-      // In addition to rendering, store app reference for updating app state 
-      // from the dispatcher
+      // In addition to rendering, store the app reference for updating app
+      // state from the dispatcher
       dispatcher.app = React.render(React.createElement(App,
         {initialState}), document.body);
     }

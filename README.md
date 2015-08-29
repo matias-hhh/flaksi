@@ -129,7 +129,7 @@ The most peculiar thing in flaksi stores are the action handler methods. Instead
     createMessage(action) {
       let messages = this.state.messages;
       messages.push(action.message);
-      return this.setState({messages});
+      this.setState({messages});
     }
 
   }
