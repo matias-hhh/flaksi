@@ -11,6 +11,7 @@ export default class Dispatcher {
     this.debug = debug;
     this.stores = [];
 
+    // Store stores and and get actions from them
     stores.forEach(Store => {
       this.stores.push(Store);
 
@@ -31,6 +32,7 @@ export default class Dispatcher {
     }
   }
 
+  // Initialize store instances and pass the initial state to their constructors
   initializeStores(initialState) {
     this.stores = this.stores.map(Store => {
       let store = new Store(initialState, true);
@@ -38,6 +40,10 @@ export default class Dispatcher {
     });
   }
 
+  // Creates a triggerAction-function. Depending of the data it receives, it can
+  // dispatch a view action, a server action, or both. Server action makes a http-
+  // request to a specified url using the specified method. The response body is
+  // then wrapped into an action.
   createTriggerAction(type) {
     return data => {
 
@@ -71,12 +77,10 @@ export default class Dispatcher {
             .then(result => {
               let action = assign({type, transactionId, source: 'server'},
                 result);
-              if (apiData.debug) { assign(action, {debug: true}); }
               this.dispatch(action);
             })
             .catch(err => {
               let action = {type, transactionId, source: 'server', error: err};
-              if (apiData.debug) { assign(action, {debug: true}); }
               this.dispatch(action);
             });
         }
@@ -86,6 +90,7 @@ export default class Dispatcher {
     };
   }
 
+  // Put the action into a queue and attempt to dispatch it
   dispatch(action) {
     this.dispatchQueue.push(action);
 
@@ -97,6 +102,7 @@ export default class Dispatcher {
     this.dispatchNext();
   }
 
+  // Attempts to dispatch action.
   dispatchNext() {
 
     if (!this.dispatchQueue.length || this.isDispatching) {
