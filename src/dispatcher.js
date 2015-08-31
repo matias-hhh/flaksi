@@ -61,8 +61,8 @@ export default class Dispatcher {
           // Use mockup apiCaller if one is defined
           let apiCaller;
 
-          if (this.apiMockup) {
-            apiCaller = this.apiMockup;
+          if (this.serverApiMockup) {
+            apiCaller = this.serverApiMockup;
           } else {
             apiCaller = resource;
           }

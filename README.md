@@ -194,7 +194,7 @@ It would also make a http-request using POST-method to the url ``/api/messages``
   }
 ```
 
-After the server responds, the data from the response body is assinged to an action which could be like this:
+After the server responds, the data from the response body is assinged to an action and if for example the server's response body is ``{success: true}``, the resulting action would be like this:
 
 ```js
   {
