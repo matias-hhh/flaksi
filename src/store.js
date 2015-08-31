@@ -1,3 +1,4 @@
+import assign from './assign';
 export default class Store {
 
   constructor(debug=false) {
@@ -24,10 +25,12 @@ export default class Store {
 
     Object.keys(newState).forEach(key => {
 
-      // Delete the old property so the newly set object refers to a different object
-      // (oldProps !== newProps)
-      delete this.state[key];
-      this.state[key] = newState[key];
+      // Assign new data to a new reference
+      if (newState[key] instanceof Array) {
+        this.state[key] = [].concat(newState[key]);
+      } else {
+        this.state[key] = assign({}, newState[key]);
+      }
     });
 
     this.debugConsole('state set');
