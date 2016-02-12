@@ -64,7 +64,7 @@ Flaksi is designed to work with React apps which have a **top-down approach to s
   }
 
   let stores = [
-    postStore,
+    taskStore,
     commentStore,
     messageStore,
     viewStateStore
